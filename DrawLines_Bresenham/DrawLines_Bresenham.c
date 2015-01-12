@@ -5,6 +5,7 @@
 #include <SDL2/SDL.h>
 
 #include "../XError.h"
+#include "../XFlow.h"
 
 #ifndef M_PI
 #define M_PI 3.141592f
@@ -54,7 +55,7 @@ Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
   vid_out->win = win;
 
   SDL_Renderer *rend = SDL_CreateRenderer(win, -1,
-    SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+    SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
   ErrIf0(rend, -1, SDL_GetError());
   vid_out->rend = rend;
 
@@ -77,18 +78,10 @@ Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
 
 static void
 Cleanup(struct VideoScreen *vid) {
-  if (vid->screen.pixel_fmt) {
-    SDL_FreeFormat(vid->screen.pixel_fmt);
-  }
-  if (vid->screen.texture) {
-    SDL_DestroyTexture(vid->screen.texture);
-  }
-  if (vid->rend) {
-    SDL_DestroyRenderer(vid->rend);
-  }
-  if (vid->win) {
-    SDL_DestroyWindow(vid->win);
-  }
+  DoIf(vid->screen.pixel_fmt, SDL_FreeFormat(vid->screen.pixel_fmt));
+  DoIf(vid->screen.texture, SDL_DestroyTexture(vid->screen.texture));
+  DoIf(vid->rend, SDL_DestroyRenderer(vid->rend));
+  DoIf(vid->win, SDL_DestroyWindow(vid->win));
   SDL_Quit();
 }
 
@@ -107,11 +100,12 @@ ClearScreen(struct Screen *screen, SDL_Color color) {
 }
 
 static inline void
-DrawPoint(struct Screen *s, int x, int y, SDL_Color color) {
+WritePixel(struct Screen *s, int x, int y, SDL_Color color) {
   assert(x >= 0);
   assert(y >= 0);
   assert(x < s->width);
   assert(y < s->height);
+
   Uint32 *pixel = (Uint32*) (
     ((char*)s->pixels + y*s->pitch) + x*sizeof (Uint32)
   );
@@ -127,10 +121,10 @@ DrawLine_Bresenham(struct Screen *s,
    * I wanted to keep the drawing loop a single piece of code, instead of
    * having several ones for the different cases of this algorithm. This is the
    * reason why flip, x_sign and y_sign exist. It's also the reason the
-   * DRAW macro was defined below: the statement which would issue a print
-   * pixel command got so complicated (because it had to take flip and the
-   * signs into account) that it was making the code extremely unpleasant. The
-   * macro dealt with that.
+   * WRITE_PIXEL macro was defined below: the statement which would issue a
+   * print pixel command got so complicated (because it had to take flip and
+   * the signs into account) that it was making the code extremely unpleasant.
+   * The macro dealt with that.
    *
    * I don't claim that this is a good implementation of the Bresenham
    * algorithm. This is only my first attempt. I imagine I'll be implementing
@@ -191,8 +185,8 @@ DrawLine_Bresenham(struct Screen *s,
      *
      * Another way to do it is to have flip as 0 or 1 and use multiplication
      * and addition, instead of having it as 0 or ~0 and use logical AND and
-     * OR (see the DRAW macro below to verify how flip is used to select
-     * which of x or y is the first and second parameter).
+     * OR (see the WRITE_PIXEL macro below to verify how flip is used to
+     * select which of x or y is the first and second parameter).
      *
      * A third way is to simply use an if.
      */
@@ -200,6 +194,7 @@ DrawLine_Bresenham(struct Screen *s,
     x1 = x1^y1;
     y1 = x1^y1;
     x1 = x1^y1;
+
     x2 = x2^y2;
     y2 = x2^y2;
     x2 = x2^y2;
@@ -221,33 +216,33 @@ DrawLine_Bresenham(struct Screen *s,
 
 #if 0
   /*
-   * This macro (DRAW) acts like a local function which makes the drawing
-   * taking into consideration arguments flips and sign flips.
+   * This macro (WRITE_PIXEL) acts like a local function which makes the
+   * drawing taking into consideration arguments flips and sign flips.
    *
-   * It basically calls DrawPoint(s, x1, y1, x2, y2, color) when flip is 0, or
-   * DrawPoint(s, y1, x1, y2, x2, color) for when flip is ~0. However, it
+   * It basically calls WritePixel(s, x1, y1, x2, y2, color) when flip is 0,
+   * or WritePixel(s, y1, x1, y2, x2, color) for when flip is ~0. However, it
    * also makes sure that the original sign is taken into account.
    *
-   * As of now, this implementation of DRAW is in here for educational
+   * As of now, this implementation of WRITE_PIXEL is in here for educational
    * purposes only. In practice, the alternative one using an `if` seems runs
-   * a bit faster.
+   * a bit faster (~5% from what I've measured).
    */
-  #define DRAW(x, y) \
+  #define WRITE_PIXEL(x, y) \
     do { \
       int aux__x = (x)*x_sign; \
       int aux__y = (y)*y_sign; \
-      DrawPoint(s, (aux__x & ~flip) | (aux__y & flip), \
-                   (aux__y & ~flip) | (aux__x & flip), color); \
+      WritePixel(s, (aux__x & ~flip) | (aux__y & flip), \
+                    (aux__y & ~flip) | (aux__x & flip), color); \
     } while (0)
 #else
   /*
    * The idea is that this one is a simplification of the above. Instead of
-   * relying on bitwise operators, it just does an if.
+   * relying on bitwise operators, it just does an `if`.
    */
-  #define DRAW(x, y) \
+  #define WRITE_PIXEL(x, y) \
     do { \
-      if (flip == 0) DrawPoint(s, (x)*x_sign, (y)*y_sign, color); \
-      else DrawPoint(s, (y)*y_sign, (x)*x_sign, color); \
+      if (flip == 0) WritePixel(s, (x)*x_sign, (y)*y_sign, color); \
+      else WritePixel(s, (y)*y_sign, (x)*x_sign, color); \
     } while (0)
 #endif
 
@@ -258,15 +253,15 @@ DrawLine_Bresenham(struct Screen *s,
   int D = 2*dy - dx;
   int x = x1;
   int y_prev = y1;
-  DRAW(x, y_prev);
+  WRITE_PIXEL(x, y_prev);
   for (x = x1 + 1; x <= x2; x++) {
     int y = D > 0 ? y_prev + 1 : y_prev;
-    DRAW(x, y);
+    WRITE_PIXEL(x, y);
     D += 2*dy - 2*dx*(y - y_prev);
     y_prev = y;
   }
 
-  #undef DRAW
+  #undef WRITE_PIXEL
 }
 
 static void
@@ -309,13 +304,14 @@ DrawLoop(struct VideoScreen *vid) {
 
   Uint32 beginning = SDL_GetTicks();
   for (;;) {
+    double t = (SDL_GetTicks() - (double)beginning)/1000.0;
+    if (t > 1) {
+      printf("%f\n", frames/t);
+      beginning = SDL_GetTicks();
+      frames = 0;
+    }
     while (SDL_PollEvent(&e)) {
       if (e.type == SDL_QUIT) {
-        double d_frames = frames;
-        double t = SDL_GetTicks();
-        t -= beginning;
-        t /= 1000;
-        fprintf(stderr, "%f\n", d_frames/t);
         return 0;
       }
     }
@@ -325,12 +321,41 @@ DrawLoop(struct VideoScreen *vid) {
     Draw(s);
     SDL_UnlockTexture(s->texture);
     ErrLt0(SDL_RenderCopy(vid->rend, s->texture, 0, 0), SDL_GetError());
-    frames++;
     SDL_RenderPresent(vid->rend);
+    frames++;
   }
 
-  // Basically, this should never happen.
+  // This should never happen.
   return -1;
+}
+
+static inline const char *
+FmtMessage(const char *msg, const char *alt) {
+  return msg ? (*msg ? msg : alt) : alt;
+}
+
+static void
+ReportError(void) {
+  struct XERR_ErrorSequence err_seq = XERR_CopyErrors();
+  if (!err_seq.errors) {
+    fputs("Couldn't get error information.\n", stderr);
+  }
+  const char *fmt = "\t%s: L%d: %s: %s\n"
+    "\t\t%s\n";
+  fputs("Error! Aborting program.\n"
+         "Bread Crumbs:\n"
+         "=============\n", stderr);
+  for (size_t i = 0; i < err_seq.count; i++) {
+    struct XERR_Error *err = err_seq.errors + i;
+    fprintf(stderr, fmt,
+      FmtMessage(err->file.data, "(missing file name)"),
+      err->line,
+      FmtMessage(err->func.data, "(missing function name)"),
+      FmtMessage(err->msg.data, "(missing message)"),
+      FmtMessage(err->code.data, "(missing code)"));
+  }
+  XERR_FreeErrors(err_seq);
+  XERR_ClearInternalSequence();
 }
 
 int
@@ -346,6 +371,7 @@ main(int argc, char *argv[]) {
   return 0;
 
 err:
+  ReportError();
   Cleanup(&video);
   return 1;
 }
