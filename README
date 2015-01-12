@@ -1,0 +1,19 @@
+SRend
+=====
+This is a repository in which I put things related to rendering. I'm doing do
+by writing pieces of a software renderer.
+
+The idea is to build everything on top of SDL2. One of the reasons is that
+I'd like to take this to windows later on and try it out (currently I'm only
+on linux).
+
+Programs
+========
+  +------------+
+  | DrawPoints |
+  +-+----------+----------+
+  |#| FILES: DrawPoints.c |
+  +-+---------------------+---------------------------------------------------+
+  |#| Draw some points across a horizontal line. Extremely simple program     |
+  |#| merely to get on with drawing pixels with SDL2.                         |
+  +-+-------------------------------------------------------------------------+
