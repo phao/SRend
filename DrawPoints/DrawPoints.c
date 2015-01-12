@@ -102,24 +102,36 @@ ClearScreen(struct Screen *screen, SDL_Color color) {
 }
 
 static inline Uint32*
-GetPixelAt(struct Screen *screen, int x, int y) {
+GetPixelAt(struct Screen *s, int x, int y) {
+  assert(x >= 0);
+  assert(y >= 0);
+  assert(x < s->width);
+  assert(y < s->height);
   Uint32 *pixel = (Uint32*) (
-    ((char*)screen->pixels + y*screen->pitch) + x*sizeof (Uint32)
+    ((char*)s->pixels + y*s->pitch) + x*sizeof (Uint32)
   );
   return pixel;
 }
 
 static void
 Draw(struct Screen *s) {
-  int n_pixels = 20;
-  int side_size = (n_pixels-1)/2;
+  enum {
+    // Draw a horizontal line with this many pixels.
+    N_PIXELS = 20,
 
-  Uint32 *pixel = GetPixelAt(s, s->width/2 - side_size,
+    // How many pixels on a side (from the center).
+    SIDE_SIZE = N_PIXELS/2
+  };
+
+  Uint32 *pixel = GetPixelAt(s, s->width/2 - SIDE_SIZE,
     s->height/2);
 
-  for (int i = 0; i < n_pixels; i++, pixel++) {
-    *pixel = SDL_MapRGB(s->pixel_fmt, POINT_COLOR.r, POINT_COLOR.g,
-      POINT_COLOR.b);
+  Uint8 r = POINT_COLOR.r;
+  Uint8 g = POINT_COLOR.g;
+  Uint8 b = POINT_COLOR.b;
+  for (int i = 0; i < N_PIXELS; i++) {
+    *pixel = SDL_MapRGB(s->pixel_fmt, r, g, b);
+    pixel++;
   }
 }
 

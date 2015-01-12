@@ -9,11 +9,14 @@ on linux).
 
 Programs
 ========
-  +------------+
-  | DrawPoints |
-  +-+----------+----------+
-  |#| FILES: DrawPoints.c |
-  +-+---------------------+---------------------------------------------------+
-  |#| Draw some points across a horizontal line. Extremely simple program     |
-  |#| merely to get on with drawing pixels with SDL2.                         |
-  +-+-------------------------------------------------------------------------+
++------------+
+| DrawPoints |
++------------+
+Draw some points across a horizontal line. Extremely simple program merely
+to get on with drawing pixels with SDL2.
+
+XError
+======
+This code relies on XError. This is a error report handling library for C
+programming that I'm currently working on. You can find more on it in here:
+https://github.com/phao/XError.
