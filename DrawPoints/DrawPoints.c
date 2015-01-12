@@ -2,7 +2,7 @@
 
 #include <SDL2/SDL.h>
 
-#include "XError.h"
+#include "../XError.h"
 
 #define UNUSED_PARAM(p) (void) p
 

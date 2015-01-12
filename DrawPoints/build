@@ -1,3 +1,0 @@
-#!/bin/bash
-
-gcc -Wall -Wextra -pedantic -std=c99 -g3 -O2 DrawPoints.c XError.c -o DrawPoints -lSDL2

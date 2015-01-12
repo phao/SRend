@@ -1,0 +1,10 @@
+#!/bin/bash
+
+gcc -Wall -Wextra -pedantic -std=c99 -g3 \
+  -O2 -march=native \
+  DrawLines_Bresenham.c ../XError.c \
+  -lSDL2 -lm
+
+./a.out
+rm -f a.out
+

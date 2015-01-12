@@ -9,11 +9,26 @@ on linux).
 
 Programs
 ========
-+------------+
-| DrawPoints |
-+------------+
-Draw some points across a horizontal line. Extremely simple program merely
-to get on with drawing pixels with SDL2.
+Each program is identified by having a directory of its own with its own
+name.
+
+  => DrawPoints
+  =============
+  Draws some points across a horizontal line. Extremely simple program merely
+  to get on with drawing pixels with SDL2.
+
+  => DrawLine_Bresenham
+  =====================
+  My first attempt at the Bresenham line drawing algorithm.
+
+  The code was a bit messier, but it was actually cleaner than I expected.
+  The largest issue was to make sure it worked for all cases and not just for
+  when the line has a positive slope smaller than 1, which was how I learned
+  the algorithm. This was largely due to a silly attention mistake (wrote x
+  when I should have written y) that took me about half hour to find.
+
+  It was very impressive how much the assertions helped in making the program
+  work.
 
 XError
 ======
