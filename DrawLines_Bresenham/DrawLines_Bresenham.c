@@ -1,5 +1,4 @@
 #include <math.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -40,7 +39,6 @@ struct VideoScreen {
   SDL_Window *win;
   SDL_Renderer *rend;
   const char *title;
-
   struct Screen screen;
 };
 
@@ -126,23 +124,25 @@ DrawLine_Bresenham(struct Screen *s,
                    SDL_Color color)
 {
   /*
-   * I wanted to keep the drawing loop a single piece of code. This is the
+   * I wanted to keep the drawing loop a single piece of code, instead of
+   * having several ones for the different cases of this algorithm. This is the
    * reason why flip, x_sign and y_sign exist. It's also the reason the
    * DRAW macro was defined below: the statement which would issue a print
    * pixel command got so complicated (because it had to take flip and the
    * signs into account) that it was making the code extremely unpleasant. The
-   * macro came to hide that.
+   * macro dealt with that.
    *
    * I don't claim that this is a good implementation of the Bresenham
-   * algorithm. This is only my first one. I imagine I'll be implementing other
-   * line drawing algorithms as time goes by.
+   * algorithm. This is only my first attempt. I imagine I'll be implementing
+   * other line drawing algorithms, including different versions of this one,
+   * as time goes by.
    *
    * The overall idea here is to analyze delta-x and delta-y to know how to
    * transform x1,y1 and x2,y2, and also how to set up flip,x_sign and y_sign
    * so that the loop in the end can work regardless of where things are.
    */
 
-  assert(abs(x1) >= 0);
+  assert(x1 >= 0);
   assert(y1 >= 0);
   assert(x1 < s->width);
   assert(y1 < s->height);
@@ -170,8 +170,9 @@ DrawLine_Bresenham(struct Screen *s,
   }
   if (dy < 0) {
     /*
-     * Going downwards. Flip the sign so the loop can works as usual, but
-     * remember to flip the sign before plotting y.
+     * Going downwards (i.e. y is decreasing going from y1 to y2). Flip the
+     * sign so the loop can works as usual, but remember to flip the sign
+     * before plotting y.
      */
     y_sign = -1;
     y1 *= -1;
@@ -183,7 +184,17 @@ DrawLine_Bresenham(struct Screen *s,
   if (dy >= dx) {
     /*
      * We are now in the second octant. We should flip around the line y=x.
-     * That means replacing x with y and y with x.
+     * That means replacing x with y and y with x. This is the specific reason
+     * why flip exists. It's set as a string of 0 bits or 1 bits so that I can
+     * logically AND it or its complement with a number and have the effect of
+     * enabling/disabling that number.
+     *
+     * Another way to do it is to have flip as 0 or 1 and use multiplication
+     * and addition, instead of having it as 0 or ~0 and use logical AND and
+     * OR (see the DRAW macro below to verify how flip is used to select
+     * which of x or y is the first and second parameter).
+     *
+     * A third way is to simply use an if.
      */
 
     x1 = x1^y1;
@@ -208,21 +219,41 @@ DrawLine_Bresenham(struct Screen *s,
   assert(dy >= 0);
   assert(dy <= dx);
 
+#if 0
   /*
    * This macro (DRAW) acts like a local function which makes the drawing
    * taking into consideration arguments flips and sign flips.
    *
    * It basically calls DrawPoint(s, x1, y1, x2, y2, color) when flip is 0, or
-   * DrawPoint(s, y1, x1, y2, x2, color) for when flip is all 1s. However, it
+   * DrawPoint(s, y1, x1, y2, x2, color) for when flip is ~0. However, it
    * also makes sure that the original sign is taken into account.
+   *
+   * As of now, this implementation of DRAW is in here for educational
+   * purposes only. In practice, the alternative one using an `if` seems runs
+   * a bit faster.
    */
   #define DRAW(x, y) \
-    DrawPoint(s, (((x)*x_sign) & ~flip) | (((y)*y_sign) & flip), \
-                 (((y)*y_sign) & ~flip) | (((x)*x_sign) & flip), color)
+    do { \
+      int aux__x = (x)*x_sign; \
+      int aux__y = (y)*y_sign; \
+      DrawPoint(s, (aux__x & ~flip) | (aux__y & flip), \
+                   (aux__y & ~flip) | (aux__x & flip), color); \
+    } while (0)
+#else
+  /*
+   * The idea is that this one is a simplification of the above. Instead of
+   * relying on bitwise operators, it just does an if.
+   */
+  #define DRAW(x, y) \
+    do { \
+      if (flip == 0) DrawPoint(s, (x)*x_sign, (y)*y_sign, color); \
+      else DrawPoint(s, (y)*y_sign, (x)*x_sign, color); \
+    } while (0)
+#endif
 
   /*
    * The algorithm then can run just as usual. From its point of view, this
-   * line lies into the first quadrant and dy <= dx.
+   * line has its slope positive and less than 1.
    */
   int D = 2*dy - dx;
   int x = x1;
