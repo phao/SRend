@@ -30,6 +30,20 @@ name.
   It was very impressive how much the assertions helped in making the program
   work.
 
+  => DrawCircles_DDA
+  ==================
+  My first attempt at the digital differential analysis algorithm for drawing
+  circles.
+
+  Largely, forgetting to round floating point values to the nearest integer
+  value was what got me. The algorithm in general made sense without much of
+  a trouble.
+
+  There were some issues around finding that E value the book (Compute Graphics
+  via Java) talks about. They were left unresolved. If I ever study
+  rasterization algorithms again, which I intend to, I'll have another look at
+  this.
+
 XError
 ======
 This code relies on XError. This is a error report handling library for C

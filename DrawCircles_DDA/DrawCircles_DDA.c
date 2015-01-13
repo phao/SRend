@@ -152,36 +152,32 @@ DrawCircle_DDA(struct Screen *s,
      */
     int round_x = x + 0.5f;
     int round_y = y + 0.5f;
-    int plot_x = cx + round_x;
-    int plot_x_inv = cx - round_x;
-    int plot_y = cy + round_y;
-    int plot_y_inv = cy - round_y;
 
-    WritePixel(s, plot_x, plot_y, color);
-    WritePixel(s, plot_y, plot_x, color);
-    WritePixel(s, plot_x_inv, plot_y, color);
-    WritePixel(s, plot_y, plot_x_inv, color);
-    WritePixel(s, plot_x, plot_y_inv, color);
-    WritePixel(s, plot_y_inv, plot_x, color);
-    WritePixel(s, plot_x_inv, plot_y_inv, color);
-    WritePixel(s, plot_y_inv, plot_x_inv, color);
+    WritePixel(s, cx+round_x, cy+round_y, color);
+    WritePixel(s, cx+round_y, cy+round_x, color);
+    WritePixel(s, cx-round_x, cy+round_y, color);
+    WritePixel(s, cx-round_y, cy+round_x, color);
+    WritePixel(s, cx+round_x, cy-round_y, color);
+    WritePixel(s, cx+round_y, cy-round_x, color);
+    WritePixel(s, cx-round_x, cy-round_y, color);
+    WritePixel(s, cx-round_y, cy-round_x, color);
 
     /*
-     * The book (Computer Graphics via Java) talks about picking an increment
+     * The book (Computer Graphics via Java) talks about picking a value
      * E such that E*y is about 1. Then, x would be incremented by E*y and
-     * y would be incremented by -E*(previous_x). However, if E*y is about 1,
-     * then E = 1/y. Then:
+     * y would be incremented by -E*(previous_x). However:
      *
-     * - x's increment is 1.
-     * - y's increment is -(previous_x)/y.
+     * - If E*y is about 1 and x's increment per iteration is 1, then
+     * - E is about 1/y; and
+     * - y's increment (-E*previous_X) is about -(previous_x)/y.
      *
      * Finding E doesn't seem necessary. I'll probably be studying the Digital
      * Differential Analysis algorithm for drawing circles again in the future,
      * so I won't spend much time in here much more.
      *
      * Another thing about the book's E value is that it's supposed to be the
-     * inverse of the smallest power of 2 larger than the given radius.
-     * Visually speaking, picking 1/rad seems just as good.
+     * inverse of the smallest power of 2 strictly larger than the given
+     * radius. Visually speaking, picking 1/rad seems just as good.
      */
 
     y -= x/y;
@@ -191,7 +187,9 @@ DrawCircle_DDA(struct Screen *s,
 
 static void
 Draw(struct Screen *s) {
-  DrawCircle_DDA(s, 200, 200, 2, MAP_COLOR_RGB(0, 0, 0));
+  for (int i = 0; i < 10; i++) {
+    DrawCircle_DDA(s, 200+i*10, 200, 10, MAP_COLOR_RGB(0, 0, 0));
+  }
 }
 
 static int
