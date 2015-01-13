@@ -21,20 +21,30 @@ enum {
 #define DEFAULT_TITLE "Draw Point"
 
 static const SDL_Color BG_COLOR = {255, 255, 255, 255};
-static const SDL_Color LINE_COLOR = {0, 127, 31, 255};
 
 /*
  * The constant PIXEL_FORMAT and the typedef ColorUint are tightly related. So
- * is the macro/function MAP_COLOR_RGB. They should be manipulated together
- * and dealt with together.
+ * are the color manipulation macro/function like MAP_COLOR_RGB. They should
+ * be manipulated together and dealt with together.
  */
+
 enum {
   PIXEL_FORMAT = SDL_PIXELFORMAT_RGB888
 };
 
 typedef Uint32 ColorUint;
 
-#define MAP_COLOR_RGB(r, g, b) ((~0u >> 8) & (((r) << 16) | ((g) << 8) | (b)))
+/**
+ * The values r, g, b must be in between 0 and 255 inclusive.
+ */
+#define MAP_COLOR_RGB(r, g, b) \
+  ((~(Uint32)0 >> 8) & (((r) << 16) | ((g) << 8) | (b)))
+
+#define COLOR_RED(c) (((c) >> 16) & 0xff)
+
+#define COLOR_GREEN(c) (((c) >> 8) & 0xff)
+
+#define COLOR_BLUE(c) ((c) & 0xff)
 
 struct Screen {
   SDL_Texture *texture;
@@ -58,18 +68,21 @@ Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
   ErrLt0(SDL_Init(SDL_INIT_VIDEO), SDL_GetError());
 
   SDL_Window *win = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED,
-    SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN);
+                                     SDL_WINDOWPOS_UNDEFINED, width, height,
+                                     SDL_WINDOW_SHOWN);
   ErrIf0(win, -1, SDL_GetError());
   vid_out->win = win;
   vid_out->title = title;
 
   SDL_Renderer *rend = SDL_CreateRenderer(win, -1,
-    SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+                                          SDL_RENDERER_ACCELERATED
+                                          | SDL_RENDERER_PRESENTVSYNC);
   ErrIf0(rend, -1, SDL_GetError());
   vid_out->rend = rend;
 
   SDL_Texture *tex = SDL_CreateTexture(rend, PIXEL_FORMAT,
-    SDL_TEXTUREACCESS_STREAMING, width, height);
+                                       SDL_TEXTUREACCESS_STREAMING,
+                                       width, height);
   ErrIf0(tex, -1, SDL_GetError());
   vid_out->screen.texture = tex;
 
@@ -273,7 +286,7 @@ Draw(struct Screen *s) {
      * With this amount of lines, I was achieving about 60 fps according to
      * the simple count made in the DrawLoop function.
      */
-    N_LINES = 512*(32+16)
+    N_LINES = 512*64
   };
 
   static
@@ -293,24 +306,21 @@ Draw(struct Screen *s) {
 
   const float RAD = (x1 < y1 ? x1 : y1)/1.1f;
 
-  SDL_Color c = LINE_COLOR;
-  c.b = c.g = 0;
-
   if (!filled) {
     fprintf(stderr, "Size of lines buffer: %zu bytes.\n", sizeof lines);
-    filled = 1;
-    size_t i = 0;
+    int i = 0;
     for (float angle = 0; angle < ANGLE_LIMIT; angle += ANGLE_DIFF) {
       int x2 = x1 + cosf(angle)*RAD;
       int y2 = y1 + sinf(angle)*RAD;
-      c.g = 255 * angle/ANGLE_LIMIT;
-      ColorUint color = MAP_COLOR_RGB(c.r, c.g, c.b);
+      int green = 255 * angle/ANGLE_LIMIT;
+      ColorUint color = MAP_COLOR_RGB(0, green, 0);
       lines[i] = (struct Line) {x1, y1, x2, y2, color};
       i++;
     }
+    filled = 1;
   }
 
-  for (size_t i = 0; i < N_LINES; i++) {
+  for (int i = 0; i < N_LINES; i++) {
     DrawLine_Bresenham(s, lines[i].x1, lines[i].y1,
                           lines[i].x2, lines[i].y2, lines[i].color);
   }

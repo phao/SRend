@@ -1,0 +1,12 @@
+#!/bin/bash
+
+gcc -Wall -Wextra -pedantic -std=c99 -g3 \
+  -O2 -march=native -DNDEBUG \
+  DrawCircles_DDA.c ../XError.c \
+  -lSDL2 -lm
+
+./a.out
+# objdump -S -M intel intel-mnemonic -D a.out
+
+rm -f a.out
+
