@@ -23,19 +23,26 @@ enum {
 static const SDL_Color BG_COLOR = {255, 255, 255, 255};
 static const SDL_Color LINE_COLOR = {0, 127, 31, 255};
 
+/*
+ * The constant PIXEL_FORMAT and the typedef ColorUint are tightly related. So
+ * is the macro/function MAP_COLOR_RGB. They should be manipulated together
+ * and dealt with together.
+ */
 enum {
-  // Whatever this is, a pixel must be a 32bit integer.
-  DEFAULT_PIXEL_FORMAT = SDL_PIXELFORMAT_RGB888
+  PIXEL_FORMAT = SDL_PIXELFORMAT_RGB888
 };
+
+typedef Uint32 ColorUint;
+
+#define MAP_COLOR_RGB(r, g, b) ((~0u >> 8) & (((r) << 16) | ((g) << 8) | (b)))
 
 struct Screen {
   SDL_Texture *texture;
   int width, height, pitch;
   void *pixels;
-  SDL_PixelFormat *pixel_fmt;
 };
 
-#define EMPTY_SCREEN_INIT {0, 0, 0, 0, 0, 0}
+#define EMPTY_SCREEN_INIT {0, 0, 0, 0, 0,}
 
 struct VideoScreen {
   SDL_Window *win;
@@ -61,14 +68,10 @@ Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
   ErrIf0(rend, -1, SDL_GetError());
   vid_out->rend = rend;
 
-  SDL_Texture *tex = SDL_CreateTexture(rend, DEFAULT_PIXEL_FORMAT,
+  SDL_Texture *tex = SDL_CreateTexture(rend, PIXEL_FORMAT,
     SDL_TEXTUREACCESS_STREAMING, width, height);
   ErrIf0(tex, -1, SDL_GetError());
   vid_out->screen.texture = tex;
-
-  SDL_PixelFormat *pixel_fmt = SDL_AllocFormat(DEFAULT_PIXEL_FORMAT);
-  ErrIf0(pixel_fmt, -1, SDL_GetError());
-  vid_out->screen.pixel_fmt = pixel_fmt;
 
   vid_out->screen.width = width;
   vid_out->screen.height = height;
@@ -78,7 +81,6 @@ Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
 
 static void
 Cleanup(struct VideoScreen *vid) {
-  DoIf(vid->screen.pixel_fmt, SDL_FreeFormat(vid->screen.pixel_fmt));
   DoIf(vid->screen.texture, SDL_DestroyTexture(vid->screen.texture));
   DoIf(vid->rend, SDL_DestroyRenderer(vid->rend));
   DoIf(vid->win, SDL_DestroyWindow(vid->win));
@@ -86,37 +88,36 @@ Cleanup(struct VideoScreen *vid) {
 }
 
 static void
-ClearScreen(struct Screen *screen, SDL_Color color) {
-  SDL_PixelFormat *pixel_fmt = screen->pixel_fmt;
-  Uint32 color32 = SDL_MapRGB(pixel_fmt, color.r, color.g, color.b);
+ClearScreen(struct Screen *screen, ColorUint color) {
   for (int row = 0; row < screen->height; row++) {
-    Uint32 *pixels = (Uint32*) (
+    ColorUint *pixels = (ColorUint*) (
       (char*)screen->pixels + screen->pitch*row
     );
     for (int col = 0; col < screen->width; col++) {
-      *pixels = color32;
+      *pixels = color;
       pixels++;
     }
   }
 }
 
 static inline void
-WritePixel(struct Screen *s, int x, int y, Uint32 color32) {
+WritePixel(struct Screen *s, int x, int y, ColorUint color) {
   assert(x >= 0);
   assert(y >= 0);
   assert(x < s->width);
   assert(y < s->height);
 
-  Uint32 *pixel = (Uint32*) (
-    ((char*)s->pixels + y*s->pitch) + x*sizeof (Uint32)
-  );
-  *pixel = color32;
+  const size_t row_offset = y*s->pitch;
+  const size_t col_offset = x*sizeof(ColorUint);
+  const size_t offset = row_offset + col_offset;
+  ColorUint *pixel = (ColorUint*) ((char*)s->pixels + offset);
+  *pixel = color;
 }
 
 static void
 DrawLine_Bresenham(struct Screen *s,
                    int x1, int y1, int x2, int y2,
-                   Uint32 color32)
+                   ColorUint color)
 {
   /*
    * I wanted to keep the drawing loop a single piece of code, instead of
@@ -215,7 +216,7 @@ DrawLine_Bresenham(struct Screen *s,
   assert(dy >= 0);
   assert(dy <= dx);
 
-#if 1
+#if 0
   /*
    * This macro (WRITE_PIXEL) acts like a local function which makes the
    * drawing taking into consideration arguments flips and sign flips.
@@ -233,7 +234,7 @@ DrawLine_Bresenham(struct Screen *s,
       int aux__x = (x)*x_sign; \
       int aux__y = (y)*y_sign; \
       WritePixel(s, (aux__x & ~flip) | (aux__y & flip), \
-                    (aux__y & ~flip) | (aux__x & flip), color32); \
+                    (aux__y & ~flip) | (aux__x & flip), color); \
     } while (0)
 #else
   /*
@@ -242,8 +243,8 @@ DrawLine_Bresenham(struct Screen *s,
    */
 # define WRITE_PIXEL(x, y) \
     do { \
-      if (flip == 0) WritePixel(s, (x)*x_sign, (y)*y_sign, color32); \
-      else WritePixel(s, (y)*y_sign, (x)*x_sign, color32); \
+      if (flip == 0) WritePixel(s, (x)*x_sign, (y)*y_sign, color); \
+      else WritePixel(s, (y)*y_sign, (x)*x_sign, color); \
     } while (0)
 #endif
 
@@ -271,17 +272,14 @@ Draw(struct Screen *s) {
     /*
      * With this amount of lines, I was achieving about 60 fps according to
      * the simple count made in the DrawLoop function.
-     *
-     * This means that the program was drawing 1720320 lines per second, which
-     * is a HUGE number! That was on my intel chip.
      */
-    N_LINES = 512*56
+    N_LINES = 512*(32+16)
   };
 
   static
   struct Line {
     int x1, y1, x2, y2;
-    Uint32 color32;
+    ColorUint color;
   }
   lines[N_LINES];
 
@@ -306,15 +304,15 @@ Draw(struct Screen *s) {
       int x2 = x1 + cosf(angle)*RAD;
       int y2 = y1 + sinf(angle)*RAD;
       c.g = 255 * angle/ANGLE_LIMIT;
-      Uint32 color32 = SDL_MapRGB(s->pixel_fmt, c.r, c.g, c.b);
-      lines[i] = (struct Line) {x1, y1, x2, y2, color32};
+      ColorUint color = MAP_COLOR_RGB(c.r, c.g, c.b);
+      lines[i] = (struct Line) {x1, y1, x2, y2, color};
       i++;
     }
   }
 
   for (size_t i = 0; i < N_LINES; i++) {
     DrawLine_Bresenham(s, lines[i].x1, lines[i].y1,
-                          lines[i].x2, lines[i].y2, lines[i].color32);
+                          lines[i].x2, lines[i].y2, lines[i].color);
   }
 }
 
@@ -324,13 +322,16 @@ DrawLoop(struct VideoScreen *vid) {
   struct Screen *s = &vid->screen;
   long frames = 0;
 
-  Uint32 beginning = SDL_GetTicks();
+  ColorUint bg_color = MAP_COLOR_RGB(BG_COLOR.r, BG_COLOR.g, BG_COLOR.b);
+
+  Uint64 beginning = SDL_GetPerformanceCounter();
   for (;;) {
-    double t = (SDL_GetTicks() - (double)beginning)/1000.0;
-    if (t > 1) {
+    double t = (SDL_GetPerformanceCounter() - beginning);
+    t /= SDL_GetPerformanceFrequency();
+    if (t >= 2) {
       printf("%f\n", frames/t);
-      beginning = SDL_GetTicks();
       frames = 0;
+      beginning = SDL_GetPerformanceCounter();
     }
     while (SDL_PollEvent(&e)) {
       if (e.type == SDL_QUIT) {
@@ -339,7 +340,7 @@ DrawLoop(struct VideoScreen *vid) {
     }
     ErrLt0(SDL_LockTexture(s->texture, 0, &s->pixels, &s->pitch),
       SDL_GetError());
-    ClearScreen(s, BG_COLOR);
+    ClearScreen(s, bg_color);
     Draw(s);
     SDL_UnlockTexture(s->texture);
     ErrLt0(SDL_RenderCopy(vid->rend, s->texture, 0, 0), SDL_GetError());
