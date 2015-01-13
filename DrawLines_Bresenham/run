@@ -1,10 +1,13 @@
 #!/bin/bash
 
-gcc -Wall -Wextra -pedantic -std=c99 -g3 \
-  -O2 -march=native \
+gcc -Wall -Wextra -pedantic -std=c99 \
+  -O2 -march=native -DNDEBUG \
   DrawLines_Bresenham.c ../XError.c \
   -lSDL2 -lm
 
+ls -sh a.out
 ./a.out
+# objdump -S -M intel intel-mnemonic -D a.out
+
 rm -f a.out
 

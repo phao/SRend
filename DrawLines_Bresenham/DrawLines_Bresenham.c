@@ -11,7 +11,7 @@
 #define M_PI 3.141592f
 #endif
 
-#define UNUSED_PARAM(p) (void) p
+#define UNUSED_PARAM(p) ((void) (p))
 
 enum {
   DEFAULT_WIDTH = 640,
@@ -24,6 +24,7 @@ static const SDL_Color BG_COLOR = {255, 255, 255, 255};
 static const SDL_Color LINE_COLOR = {0, 127, 31, 255};
 
 enum {
+  // Whatever this is, a pixel must be a 32bit integer.
   DEFAULT_PIXEL_FORMAT = SDL_PIXELFORMAT_RGB888
 };
 
@@ -53,13 +54,12 @@ Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
     SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_SHOWN);
   ErrIf0(win, -1, SDL_GetError());
   vid_out->win = win;
+  vid_out->title = title;
 
   SDL_Renderer *rend = SDL_CreateRenderer(win, -1,
     SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
   ErrIf0(rend, -1, SDL_GetError());
   vid_out->rend = rend;
-
-  vid_out->title = title;
 
   SDL_Texture *tex = SDL_CreateTexture(rend, DEFAULT_PIXEL_FORMAT,
     SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -88,19 +88,20 @@ Cleanup(struct VideoScreen *vid) {
 static void
 ClearScreen(struct Screen *screen, SDL_Color color) {
   SDL_PixelFormat *pixel_fmt = screen->pixel_fmt;
+  Uint32 color32 = SDL_MapRGB(pixel_fmt, color.r, color.g, color.b);
   for (int row = 0; row < screen->height; row++) {
     Uint32 *pixels = (Uint32*) (
       (char*)screen->pixels + screen->pitch*row
     );
     for (int col = 0; col < screen->width; col++) {
-      *pixels = SDL_MapRGB(pixel_fmt, color.r, color.g, color.b);
+      *pixels = color32;
       pixels++;
     }
   }
 }
 
 static inline void
-WritePixel(struct Screen *s, int x, int y, SDL_Color color) {
+WritePixel(struct Screen *s, int x, int y, Uint32 color32) {
   assert(x >= 0);
   assert(y >= 0);
   assert(x < s->width);
@@ -109,18 +110,18 @@ WritePixel(struct Screen *s, int x, int y, SDL_Color color) {
   Uint32 *pixel = (Uint32*) (
     ((char*)s->pixels + y*s->pitch) + x*sizeof (Uint32)
   );
-  *pixel = SDL_MapRGB(s->pixel_fmt, color.r, color.g, color.b);
+  *pixel = color32;
 }
 
 static void
 DrawLine_Bresenham(struct Screen *s,
                    int x1, int y1, int x2, int y2,
-                   SDL_Color color)
+                   Uint32 color32)
 {
   /*
    * I wanted to keep the drawing loop a single piece of code, instead of
-   * having several ones for the different cases of this algorithm. This is the
-   * reason why flip, x_sign and y_sign exist. It's also the reason the
+   * having several ones for the different cases of this algorithm. This is
+   * the reason why flip, x_sign and y_sign exist. It's also the reason the
    * WRITE_PIXEL macro was defined below: the statement which would issue a
    * print pixel command got so complicated (because it had to take flip and
    * the signs into account) that it was making the code extremely unpleasant.
@@ -209,12 +210,12 @@ DrawLine_Bresenham(struct Screen *s,
     dy = y2-y1;
   }
 
-  // 0 <= m < 1
+  // 0 <= m <= 1
   assert(dx >= 0);
   assert(dy >= 0);
   assert(dy <= dx);
 
-#if 0
+#if 1
   /*
    * This macro (WRITE_PIXEL) acts like a local function which makes the
    * drawing taking into consideration arguments flips and sign flips.
@@ -227,22 +228,22 @@ DrawLine_Bresenham(struct Screen *s,
    * purposes only. In practice, the alternative one using an `if` seems runs
    * a bit faster (~5% from what I've measured).
    */
-  #define WRITE_PIXEL(x, y) \
+# define WRITE_PIXEL(x, y) \
     do { \
       int aux__x = (x)*x_sign; \
       int aux__y = (y)*y_sign; \
       WritePixel(s, (aux__x & ~flip) | (aux__y & flip), \
-                    (aux__y & ~flip) | (aux__x & flip), color); \
+                    (aux__y & ~flip) | (aux__x & flip), color32); \
     } while (0)
 #else
   /*
    * The idea is that this one is a simplification of the above. Instead of
    * relying on bitwise operators, it just does an `if`.
    */
-  #define WRITE_PIXEL(x, y) \
+# define WRITE_PIXEL(x, y) \
     do { \
-      if (flip == 0) WritePixel(s, (x)*x_sign, (y)*y_sign, color); \
-      else WritePixel(s, (y)*y_sign, (x)*x_sign, color); \
+      if (flip == 0) WritePixel(s, (x)*x_sign, (y)*y_sign, color32); \
+      else WritePixel(s, (y)*y_sign, (x)*x_sign, color32); \
     } while (0)
 #endif
 
@@ -250,14 +251,14 @@ DrawLine_Bresenham(struct Screen *s,
    * The algorithm then can run just as usual. From its point of view, this
    * line has its slope positive and less than 1.
    */
-  int D = 2*dy - dx;
+  int discriminant = 2*dy - dx;
   int x = x1;
   int y_prev = y1;
   WRITE_PIXEL(x, y_prev);
   for (x = x1 + 1; x <= x2; x++) {
-    int y = D > 0 ? y_prev + 1 : y_prev;
+    int y = discriminant > 0 ? y_prev + 1 : y_prev;
     WRITE_PIXEL(x, y);
-    D += 2*dy - 2*dx*(y - y_prev);
+    discriminant += 2*dy - 2*dx*(y - y_prev);
     y_prev = y;
   }
 
@@ -271,11 +272,20 @@ Draw(struct Screen *s) {
      * With this amount of lines, I was achieving about 60 fps according to
      * the simple count made in the DrawLoop function.
      *
-     * This means that the program was drawing 368640 lines per second, which
+     * This means that the program was drawing 1720320 lines per second, which
      * is a HUGE number! That was on my intel chip.
      */
-    N_LINES = (512 << 3) + (512 << 2)
+    N_LINES = 512*56
   };
+
+  static
+  struct Line {
+    int x1, y1, x2, y2;
+    Uint32 color32;
+  }
+  lines[N_LINES];
+
+  static int filled;
 
   const float ANGLE_DIFF = (M_PI*2.0f)/(float)N_LINES;
   const float ANGLE_LIMIT = 2.0f*M_PI;
@@ -288,11 +298,23 @@ Draw(struct Screen *s) {
   SDL_Color c = LINE_COLOR;
   c.b = c.g = 0;
 
-  for (float angle = 0; angle < ANGLE_LIMIT; angle += ANGLE_DIFF) {
-    int x2 = x1 + cosf(angle)*RAD;
-    int y2 = y1 + sinf(angle)*RAD;
-    c.g = 255 * angle/ANGLE_LIMIT;
-    DrawLine_Bresenham(s, x1, y1, x2, y2, c);
+  if (!filled) {
+    fprintf(stderr, "Size of lines buffer: %zu bytes.\n", sizeof lines);
+    filled = 1;
+    size_t i = 0;
+    for (float angle = 0; angle < ANGLE_LIMIT; angle += ANGLE_DIFF) {
+      int x2 = x1 + cosf(angle)*RAD;
+      int y2 = y1 + sinf(angle)*RAD;
+      c.g = 255 * angle/ANGLE_LIMIT;
+      Uint32 color32 = SDL_MapRGB(s->pixel_fmt, c.r, c.g, c.b);
+      lines[i] = (struct Line) {x1, y1, x2, y2, color32};
+      i++;
+    }
+  }
+
+  for (size_t i = 0; i < N_LINES; i++) {
+    DrawLine_Bresenham(s, lines[i].x1, lines[i].y1,
+                          lines[i].x2, lines[i].y2, lines[i].color32);
   }
 }
 
