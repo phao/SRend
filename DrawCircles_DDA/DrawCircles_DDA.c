@@ -139,7 +139,7 @@ DrawCircle_DDA(struct Screen *s,
   assert(rad > 0);
 
   float y = rad;
-  float x = 0;
+  int x = 0;
   while (y > x) {
     /*
      * Forgetting to round x and y before plotting computing the plotting
@@ -150,17 +150,16 @@ DrawCircle_DDA(struct Screen *s,
      * It makes complete sense to round since you want the int-coordinated
      * point **closest** to the float-coordinated point.
      */
-    int round_x = x + 0.5f;
     int round_y = y + 0.5f;
 
-    WritePixel(s, cx+round_x, cy+round_y, color);
-    WritePixel(s, cx+round_y, cy+round_x, color);
-    WritePixel(s, cx-round_x, cy+round_y, color);
-    WritePixel(s, cx-round_y, cy+round_x, color);
-    WritePixel(s, cx+round_x, cy-round_y, color);
-    WritePixel(s, cx+round_y, cy-round_x, color);
-    WritePixel(s, cx-round_x, cy-round_y, color);
-    WritePixel(s, cx-round_y, cy-round_x, color);
+    WritePixel(s, cx+x, cy+round_y, color);
+    WritePixel(s, cx+round_y, cy+x, color);
+    WritePixel(s, cx-x, cy+round_y, color);
+    WritePixel(s, cx-round_y, cy+x, color);
+    WritePixel(s, cx+x, cy-round_y, color);
+    WritePixel(s, cx+round_y, cy-x, color);
+    WritePixel(s, cx-x, cy-round_y, color);
+    WritePixel(s, cx-round_y, cy-x, color);
 
     /*
      * The book (Computer Graphics via Java) talks about picking a value
@@ -181,7 +180,7 @@ DrawCircle_DDA(struct Screen *s,
      */
 
     y -= x/y;
-    x += 1;
+    x++;
   }
 }
 

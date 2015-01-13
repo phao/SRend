@@ -49,11 +49,3 @@ XError
 This code relies on XError. This is a error report handling library for C
 programming that I'm currently working on. You can find more on it in here:
 https://github.com/phao/XError.
-
-Some programs in here will use XError, but won't report any error in case they
-happen. This is because during the development of the test program (all
-programs here are basically tests exploratory programming) no error happened.
-
-The use of XError is more of a precaution for when an error happen, writing
-a small piece of code which reports the error on the next run (assuming the
-error is easily reproducible) is feasible.
