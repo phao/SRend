@@ -44,6 +44,15 @@ name.
   rasterization algorithms again, which I intend to, I'll have another look at
   this.
 
+  => DrawCircles_Bresenham
+  ========================
+  My first attempt at the Bresenham's circle drawing algorithm.
+
+  The book (Computer Graphics via Java) mentions this algorithm is much less
+  obvious than the line drawing and the digital differential analysis. While I
+  don't know exactly what the author of the book meant, I found this algorithm
+  much easier to understand than the other two.
+
 XError
 ======
 This code relies on XError. This is a error report handling library for C

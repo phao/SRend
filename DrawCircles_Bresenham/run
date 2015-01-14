@@ -1,0 +1,13 @@
+#!/bin/bash
+
+gcc -Wall -Wextra -pedantic -std=c99 \
+  -O2 -march=native -DNDEBUG \
+  DrawCircles_Bresenham.c ../XError.c \
+  -lSDL2 -lm
+
+# ls -sh a.out
+./a.out
+# objdump -S -M intel intel-mnemonic -D a.out
+
+rm -f a.out
+
