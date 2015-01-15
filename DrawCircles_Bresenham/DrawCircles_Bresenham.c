@@ -52,7 +52,7 @@ struct Screen {
   void *pixels;
 };
 
-#define EMPTY_SCREEN_INIT {0, 0, 0, 0, 0,}
+#define EMPTY_SCREEN_INIT {0, 0, 0, 0, 0}
 
 struct VideoScreen {
   SDL_Window *win;

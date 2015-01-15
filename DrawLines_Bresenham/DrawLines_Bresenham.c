@@ -113,20 +113,6 @@ ClearScreen(struct Screen *screen, ColorUint color) {
   }
 }
 
-static inline void
-WritePixel(struct Screen *s, int x, int y, ColorUint color) {
-  assert(x >= 0);
-  assert(y >= 0);
-  assert(x < s->width);
-  assert(y < s->height);
-
-  const size_t row_offset = y*s->pitch;
-  const size_t col_offset = x*sizeof(ColorUint);
-  const size_t offset = row_offset + col_offset;
-  ColorUint *pixel = (ColorUint*) ((char*)s->pixels + offset);
-  *pixel = color;
-}
-
 static void
 DrawLine_Bresenham(struct Screen *s,
                    int x1, int y1, int x2, int y2,

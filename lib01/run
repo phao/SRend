@@ -1,0 +1,10 @@
+#!/bin/bash
+
+gcc -Wall -Wextra -pedantic -std=c99 \
+  -O2 -march=native -DNDEBUG \
+  srend.c test01.c ../XError.c \
+  -lSDL2 -lm
+
+./a.out
+rm -f a.out
+
