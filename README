@@ -53,6 +53,17 @@ name.
   don't know exactly what the author of the book meant, I found this algorithm
   much easier to understand than the other two.
 
+  => lib01
+  ========
+  A first attempt at putting together rendering functions inside a library-ish
+  thing. It draws and fills rectangles and circles. It also draw lines. It has
+  special versions of line drawing for vertical and horizontal lines.
+
+  This was pretty starightforward to do. This was mostly because the
+  potentially tricky algorithms (line and circle drawing) were already
+  implemented. The resulting code isn't particularly messy, but it isn't
+  specially clean either.
+
 XError
 ======
 This code relies on XError. This is a error report handling library for C
