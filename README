@@ -64,6 +64,13 @@ name.
   implemented. The resulting code isn't particularly messy, but it isn't
   specially clean either.
 
+  => lib02
+  ========
+  An evolution base on lib01. It also inclues srmath.h and srmath.h, which
+  contains definitions for letting the user work with matrices and vectors
+  2D and also a bit of homogeneous coordinates. It's pretty basic, but it
+  allows for some simpler transformations.
+
 XError
 ======
 This code relies on XError. This is a error report handling library for C

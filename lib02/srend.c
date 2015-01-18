@@ -9,25 +9,23 @@
     (a) ^= (b); \
   } while (0)
 
-#ifndef NDEBUG
+extern ColorUint
+MapColorRGB(Uint8 r, Uint8 g, Uint8 b);
 
-static inline int
-PointInScreen(struct Screen *s, int x, int y) {
-  return x >= 0 && x < s->width && y >= 0 && y < s->height;
-}
+extern Uint8
+RedOfColor(ColorUint color);
 
-#endif
+extern Uint8
+GreenOfColor(ColorUint color);
 
-void
-WritePixel(struct Screen *s, int x, int y, ColorUint color) {
-  assert(PointInScreen(s, x, y));
+extern Uint8
+BlueOfColor(ColorUint color);
 
-  const size_t row_offset = y*s->pitch;
-  const size_t col_offset = x*sizeof(ColorUint);
-  const size_t offset = row_offset + col_offset;
-  ColorUint *pixel = (ColorUint*) ((char*)s->pixels + offset);
-  *pixel = color;
-}
+extern int
+PointInScreen(struct Screen *s, int x, int y);
+
+extern void
+WritePixel(struct Screen *s, int x, int y, ColorUint color);
 
 void
 ClearScreen(struct Screen *screen, ColorUint color) {
