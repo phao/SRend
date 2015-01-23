@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <assert.h>
@@ -18,7 +19,7 @@ enum {
   DEFAULT_HEIGHT = 480
 };
 
-#define DEFAULT_TITLE "Draw Point"
+#define DEFAULT_TITLE "Splines 2D"
 
 static const SDL_Color BG_COLOR = {255, 255, 255, 255};
 
@@ -52,16 +53,16 @@ struct Screen {
   void *pixels;
 };
 
-#define EMPTY_SCREEN_INIT {0, 0, 0, 0, 0,}
+#define SCREEN_INIT_ZERO {0, 0, 0, 0, 0}
 
 struct VideoScreen {
   SDL_Window *win;
   SDL_Renderer *rend;
-  const char *title;
+  const char * title;
   struct Screen screen;
 };
 
-#define EMPTY_VIDEO_SCREEN_INIT {0, 0, 0, EMPTY_SCREEN_INIT}
+#define VIDEO_SCREEN_INIT_EMPTY {0, 0, 0, SCREEN_INIT_ZERO}
 
 static int
 Init(struct VideoScreen *vid_out, const char *title, int width, int height) {
@@ -100,19 +101,24 @@ Cleanup(struct VideoScreen *vid) {
   SDL_Quit();
 }
 
+static inline ColorUint *
+RowPixels(struct Screen *s, int row) {
+  return (ColorUint*) ((char*)s->pixels + s->pitch*row);
+}
+
+static inline ColorUint *
+GetPixel(struct Screen *s, int row, int col) {
+  return RowPixels(s, row) + col;
+}
+
 static void
 ClearScreen(struct Screen *screen, ColorUint color) {
   for (int row = 0; row < screen->height; row++) {
-    ColorUint *pixels = (ColorUint*) (
-      (char*)screen->pixels + screen->pitch*row
-    );
     for (int col = 0; col < screen->width; col++) {
-      *pixels = color;
-      pixels++;
+      *GetPixel(screen, row, col) = color;
     }
   }
 }
-
 
 static inline void
 WritePixel(struct Screen *s, int x, int y, ColorUint color) {
@@ -121,11 +127,7 @@ WritePixel(struct Screen *s, int x, int y, ColorUint color) {
   assert(x < s->width);
   assert(y < s->height);
 
-  const size_t row_offset = y*s->pitch;
-  const size_t col_offset = x*sizeof(ColorUint);
-  const size_t offset = row_offset + col_offset;
-  ColorUint *pixel = (ColorUint*) ((char*)s->pixels + offset);
-  *pixel = color;
+  *GetPixel(s, y, x) = color;
 }
 
 static void
@@ -280,50 +282,134 @@ DrawLine_Bresenham(struct Screen *s,
   #undef WRITE_PIXEL
 }
 
+struct Int2 {
+  int x, y;
+};
+
+static inline float
+Interpolate3(float t, float a, float b, float c) {
+  return 2.0f*(0.5f - t)*(1.0f - t)*a +
+         4.0f*t*(1.0f - t)*b +
+         2.0f*t*(t - 0.5f)*c;
+}
+
+static void
+DrawSpline2D(struct Screen *s,
+             int x0, int y0,
+             int x1, int y1,
+             int x2, int y2,
+             ColorUint color)
+{
+  const int num_segments = 30;
+  const float interval = 1.0f/num_segments;
+
+  int draw_x0 = x0;
+  int draw_y0 = y0;
+
+  for (int j = 0; j <= num_segments; j++) {
+    float t = j*interval;
+    int draw_x1 = Interpolate3(t, x0, x1, x2) + 0.5f;
+    int draw_y1 = Interpolate3(t, y0, y1, y2) + 0.5f;
+
+    DrawLine_Bresenham(s, draw_x0, draw_y0, draw_x1, draw_y1, color);
+    draw_x0 = draw_x1;
+    draw_y0 = draw_y1;
+  }
+}
+
+static void
+DrawCircle_Bresenham(struct Screen *s,
+                     int cx, int cy, int rad,
+                     ColorUint color)
+{
+  assert(cx >= 0);
+  assert(cy >= 0);
+  assert(cx < s->width);
+  assert(cy < s->height);
+  assert(rad > 0);
+
+  int D = 3 - 2*rad;
+  int x = 0;
+  int y = rad;
+  /*
+   * Note that we're starting at the top of the circle (0,rad) and going
+   * right, which means that y will decrease as x increases.
+   *
+   * This is important because the decision making based on D depends on this
+   * knowledge.
+   */
+  while (y >= x) {
+    WritePixel(s, cx+x, cy+y, color);
+    WritePixel(s, cx+y, cy+x, color);
+    WritePixel(s, cx-x, cy+y, color);
+    WritePixel(s, cx-y, cy+x, color);
+    WritePixel(s, cx+x, cy-y, color);
+    WritePixel(s, cx+y, cy-x, color);
+    WritePixel(s, cx-x, cy-y, color);
+    WritePixel(s, cx-y, cy-x, color);
+
+    if (D < 0) {
+      /*
+       * Pixel inside the circle is more distant from the border than
+       * pixel outside the circle. Choosing pixel outside the circle, which
+       * means y remains the same.
+       */
+      D += 4*x + 6;
+    }
+    else {
+      /*
+       * Pixel outside the circle is more distant from the border than pixel
+       * inside the circle. Choosing pixel inside the circle, which means
+       * y decreases.
+       */
+      D += 4*(x-y) + 10;
+      y--;
+    }
+    x++;
+  }
+}
+
 static void
 Draw(struct Screen *s) {
+  const ColorUint black = MAP_COLOR_RGB(0, 0, 0);
+  const ColorUint red = MAP_COLOR_RGB(255, 0, 0);
+
+  struct Int2 points[] = {{70, 70}, {450, 100}, {250, 360}};
+
   enum {
-    /*
-     * With this amount of lines, I was achieving about 60 fps according to
-     * the simple count made in the DrawLoop function.
-     */
-    N_LINES = 512*64
+    NUM_POINTS = sizeof points / sizeof *points
   };
 
-  static
-  struct Line {
-    int x1, y1, x2, y2;
-    ColorUint color;
+  int rads[NUM_POINTS] = {50, 30, 10};
+
+  for (int i = 0; i < NUM_POINTS; i++) {
+    DrawCircle_Bresenham(s, points[i].x, points[i].y, rads[i], red);
   }
-  lines[N_LINES];
 
-  static int filled;
+  float angle = (SDL_GetTicks()/10 % 360) * M_PI / 180.0f;
 
-  const float ANGLE_DIFF = (M_PI*2.0f)/(float)N_LINES;
-  const float ANGLE_LIMIT = 2.0f*M_PI;
+  points[0].y += sinf(angle + M_PI/4.0f)*rads[0] + 0.5f;
+  points[0].x += cosf(angle + M_PI/4.0f)*rads[0] + 0.5f;
 
-  const int x1 = s->width/2;
-  const int y1 = s->height/2;
+  points[1].y += sinf(angle + M_PI)*rads[1] + 0.5f;
+  points[1].x += cosf(angle + M_PI)*rads[1] + 0.5f;
 
-  const float RAD = (x1 < y1 ? x1 : y1)/1.1f;
+  points[2].y += sinf(angle)*rads[2] + 0.5f;
+  points[2].x += cosf(angle)*rads[2] + 0.5f;
 
-  if (!filled) {
-    fprintf(stderr, "Size of lines buffer: %zu bytes.\n", sizeof lines);
-    int i = 0;
-    for (float angle = 0; angle < ANGLE_LIMIT; angle += ANGLE_DIFF) {
-      int x2 = x1 + cosf(angle)*RAD;
-      int y2 = y1 + sinf(angle)*RAD;
-      int green = 255 * angle/ANGLE_LIMIT;
-      ColorUint color = MAP_COLOR_RGB(0, green, 0);
-      lines[i] = (struct Line) {x1, y1, x2, y2, color};
-      i++;
+  DrawSpline2D(s, points[0].x, points[0].y,
+                  points[1].x, points[1].y,
+                  points[2].x, points[2].y, black);
+
+  for (int i = 0; i < NUM_POINTS; i++) {
+    for (int j = -2; j <= 2; j++) {
+      for (int k = -2; k <= 2; k++) {
+        if (abs(k) == 2 && abs(j) == 2) {
+          continue;
+        }
+        WritePixel(s, points[i].x + j, points[i].y + k, red);
+      }
     }
-    filled = 1;
-  }
-
-  for (int i = 0; i < N_LINES; i++) {
-    DrawLine_Bresenham(s, lines[i].x1, lines[i].y1,
-                          lines[i].x2, lines[i].y2, lines[i].color);
   }
 }
 
@@ -331,19 +417,10 @@ static int
 DrawLoop(struct VideoScreen *vid) {
   SDL_Event e;
   struct Screen *s = &vid->screen;
-  long frames = 0;
 
   ColorUint bg_color = MAP_COLOR_RGB(BG_COLOR.r, BG_COLOR.g, BG_COLOR.b);
 
-  Uint64 beginning = SDL_GetPerformanceCounter();
   for (;;) {
-    double t = (SDL_GetPerformanceCounter() - beginning);
-    t /= SDL_GetPerformanceFrequency();
-    if (t >= 2) {
-      printf("%f\n", frames/t);
-      frames = 0;
-      beginning = SDL_GetPerformanceCounter();
-    }
     while (SDL_PollEvent(&e)) {
       if (e.type == SDL_QUIT) {
         return 0;
@@ -356,7 +433,6 @@ DrawLoop(struct VideoScreen *vid) {
     SDL_UnlockTexture(s->texture);
     ErrLt0(SDL_RenderCopy(vid->rend, s->texture, 0, 0), SDL_GetError());
     SDL_RenderPresent(vid->rend);
-    frames++;
   }
 
   // This should never happen.
@@ -397,7 +473,7 @@ main(int argc, char *argv[]) {
   UNUSED_PARAM(argc);
   UNUSED_PARAM(argv);
 
-  struct VideoScreen video = EMPTY_VIDEO_SCREEN_INIT;
+  struct VideoScreen video = VIDEO_SCREEN_INIT_EMPTY;
 
   jPErrLt0(Init(&video, DEFAULT_TITLE, DEFAULT_WIDTH, DEFAULT_HEIGHT), err);
   jPErrLt0(DrawLoop(&video), err);

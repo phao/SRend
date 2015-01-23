@@ -132,10 +132,10 @@ DrawCircle_Bresenham(struct Screen *s,
                      int cx, int cy, int rad,
                      ColorUint color)
 {
-  assert(x >= 0);
-  assert(y >= 0);
-  assert(x < s->width);
-  assert(y < s->height);
+  assert(cx >= 0);
+  assert(cy >= 0);
+  assert(cx < s->width);
+  assert(cy < s->height);
   assert(rad > 0);
 
   int D = 3 - 2*rad;

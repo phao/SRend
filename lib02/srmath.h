@@ -56,11 +56,11 @@ typedef float SRM_FloatM3[3][3];
  * @note Output vectors and input vectors can be the same only if they also
  * share the same indices. That is, the call:
  *
- * SRM_MatrixVectorMultiply_F3(vecs, mat, vecs, n_vecs)
+ * SRM_MatrixVectorMultiply_f3(vecs, mat, vecs, n_vecs)
  *
  * is valid, but something like:
  *
- * SRM_MatrixVectorMultiply_F3(vecs, mat, vecs + 1, n_vecs - 1)
+ * SRM_MatrixVectorMultiply_f3(vecs, mat, vecs + 1, n_vecs - 1)
  *
  * might not be. If n_vecs - 1 is 1, then there won't be overlapping SRM_Float3
  * objects, so all will be fine, but if n_vecs - 1 > 1, then there will be at
@@ -68,7 +68,7 @@ typedef float SRM_FloatM3[3][3];
  * object will have an index in out_vecs that is 1 less its index in in_vecs.
  */
 inline void
-SRM_MatrixVectorMultiply_F3(SRM_Float3 *out_vecs,
+SRM_MatrixVectorMultiply_f3(SRM_Float3 *out_vecs,
                             SRM_FloatM3 *mat,
                             SRM_Float3 *in_vecs,
                             int n_vecs)
@@ -91,11 +91,11 @@ SRM_MatrixVectorMultiply_F3(SRM_Float3 *out_vecs,
  * out = A*B.
  *
  * @note out can be one of A or B, even both. That is, the call:
- * SRM_MatrixMultiply_F3(foo, foo, foo) is valid and behaves as expected (i.e.
+ * SRM_MatrixMultiply_f3(foo, foo, foo) is valid and behaves as expected (i.e.
  * foo becomes the square of its old self).
  */
 inline void
-SRM_MatrixMultiply_F3(SRM_FloatM3 *out,
+SRM_MatrixMultiply_f3(SRM_FloatM3 *out,
                       SRM_FloatM3 *mat1,
                       SRM_FloatM3 *mat2)
 {
@@ -112,7 +112,7 @@ SRM_MatrixMultiply_F3(SRM_FloatM3 *out,
 }
 
 inline void
-SRM_PutIdentityMatrix_F3(SRM_FloatM3 *out) {
+SRM_PutIdentityMatrix_f3(SRM_FloatM3 *out) {
   (*out)[0][0] = 1.0f;
   (*out)[0][1] = 0.0f;
   (*out)[0][2] = 0.0f;
@@ -128,7 +128,7 @@ SRM_PutIdentityMatrix_F3(SRM_FloatM3 *out) {
  * out = out * R(cos_angle, sin_angle).
  */
 inline void
-SRM_ApplyRotationMatrix_HF2(SRM_FloatM3 *out,
+SRM_ApplyRotationMatrix_hf2(SRM_FloatM3 *out,
                             float cos_angle,
                             float sin_angle)
 {
@@ -158,7 +158,7 @@ SRM_ApplyRotationMatrix_HF2(SRM_FloatM3 *out,
  * out = out * T(dx, dy).
  */
 inline void
-SRM_ApplyTranslationMatrix_HF2(SRM_FloatM3 *out, float dx, float dy) {
+SRM_ApplyTranslationMatrix_hf2(SRM_FloatM3 *out, float dx, float dy) {
   /*
   [a, b, c] [1 0 dx] [a, b, a*dx + b*dy + c]
   [d, e, f]x[0 1 dy]=[d, e, d*dx + e*dy + f]
@@ -174,7 +174,7 @@ SRM_ApplyTranslationMatrix_HF2(SRM_FloatM3 *out, float dx, float dy) {
  * out = out * S(xf, yf).
  */
 inline void
-SRM_ApplyScaleMatrix_HF2(SRM_FloatM3 *out, float xf, float yf) {
+SRM_ApplyScaleMatrix_hf2(SRM_FloatM3 *out, float xf, float yf) {
   /*
   [a, b, c] [xf 0  0] [a*xf, b*yf, c]
   [d, e, f]x[0  yf 0]=[d*xf, e*yf, f]
@@ -194,7 +194,7 @@ SRM_ApplyScaleMatrix_HF2(SRM_FloatM3 *out, float xf, float yf) {
  * Line is expected to be given in the form: A*y + B*x = C.
  */
 inline void
-SRM_ApplyLineReflectionMatrix_HF2(SRM_FloatM3 *out,
+SRM_ApplyLineReflectionMatrix_hf2(SRM_FloatM3 *out,
                                   float A,
                                   float B,
                                   float C)
@@ -223,20 +223,20 @@ SRM_ApplyLineReflectionMatrix_HF2(SRM_FloatM3 *out,
     const float sin_angle = slope*hypo_inv;
     const float cos_angle = hypo_inv;
 
-    SRM_ApplyTranslationMatrix_HF2(out, 0, y_intercept);
-    SRM_ApplyRotationMatrix_HF2(out, cos_angle, sin_angle);
-    SRM_ApplyScaleMatrix_HF2(out, 1, -1);
-    SRM_ApplyRotationMatrix_HF2(out, cos_angle, -sin_angle);
-    SRM_ApplyTranslationMatrix_HF2(out, 0, -y_intercept);
+    SRM_ApplyTranslationMatrix_hf2(out, 0, y_intercept);
+    SRM_ApplyRotationMatrix_hf2(out, cos_angle, sin_angle);
+    SRM_ApplyScaleMatrix_hf2(out, 1, -1);
+    SRM_ApplyRotationMatrix_hf2(out, cos_angle, -sin_angle);
+    SRM_ApplyTranslationMatrix_hf2(out, 0, -y_intercept);
   }
   else {
     // Vertical line.
 
     const float x_intercept = C/B;
 
-    SRM_ApplyTranslationMatrix_HF2(out, x_intercept, 0);
-    SRM_ApplyScaleMatrix_HF2(out, -1, 1);
-    SRM_ApplyTranslationMatrix_HF2(out, -x_intercept, 0);
+    SRM_ApplyTranslationMatrix_hf2(out, x_intercept, 0);
+    SRM_ApplyScaleMatrix_hf2(out, -1, 1);
+    SRM_ApplyTranslationMatrix_hf2(out, -x_intercept, 0);
   }
 }
 

@@ -71,6 +71,24 @@ name.
   2D and also a bit of homogeneous coordinates. It's pretty basic, but it
   allows for some simpler transformations.
 
+  => DrawTriangle
+  ===============
+  First attempt at a triangle filling algorithm. It's still incomplete and
+  it doesn't do as much as I'd like. The idea is based off an algorithm from
+  this website: http://joshbeam.com/articles/triangle_rasterization/
+  The algorithm in the website uses floating point arithmetic, but I decided to
+  try sticking to the discipline of using only integer operations for drawing
+  these simpler figures, so I did. It led to an interesting use of fixed point
+  arithmetic. I'm not so sure about the performance of this (seems like an
+  interesting thing to benchmark).
+
+  => Splines2D
+  ============
+  Basic splines 2D drawing. I don't think I understood splines well enough
+  from the material I'm learning from. I get, though, that it involves
+  interpolating points you want in the curve to get the resulting curve. This
+  deservers more studying.
+
 XError
 ======
 This code relies on XError. This is a error report handling library for C

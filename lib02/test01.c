@@ -84,12 +84,14 @@ Draw(struct Screen *s, Uint32 ms_since_start) {
   float sin_angle = sinf(angle);
 
   SRM_FloatM3 mat;
-  SRM_PutIdentityMatrix_F3(&mat);
-  SRM_ApplyRotationMatrix_HF2(&mat, cos_angle, sin_angle);
+  SRM_PutIdentityMatrix_f3(&mat);
+  SRM_ApplyTranslationMatrix_hf2(&mat, (0.5f + sinf(angle)/2.0f)*100 ,
+                                 (0.5f + sinf(angle)/2.0f)*100);
+  SRM_ApplyRotationMatrix_hf2(&mat, cos_angle, sin_angle);
 
   SRM_Float3 points[2] = {SRM_InitHomo2(90, 0), SRM_InitHomo2(100, 0)};
 
-  SRM_MatrixVectorMultiply_F3(points, &mat, points, 2);
+  SRM_MatrixVectorMultiply_f3(points, &mat, points, 2);
 
   ColorUint black = MapColorRGB(0, 0, 0);
 

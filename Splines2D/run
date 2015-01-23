@@ -1,0 +1,10 @@
+#!/bin/bash
+
+gcc -Wall -Wextra -pedantic -std=c99 -g3 -ftree-vrp -Warray-bounds \
+  -Og -march=native \
+  Splines2D.c ../XError.c \
+  -lSDL2 -lm
+
+./a.out
+rm -f a.out
+
