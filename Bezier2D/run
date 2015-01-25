@@ -1,0 +1,9 @@
+#!/bin/bash
+
+gcc -Wall -Wextra -pedantic -std=c99 -g3 -ftree-vrp -Warray-bounds \
+  -O2 -DNDEBUG -march=native -ggdb3 \
+  Bezier2D.c ../XError.c \
+  -lSDL2 -lm
+
+./a.out
+
