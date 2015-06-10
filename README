@@ -94,3 +94,10 @@ XError
 This code relies on XError. This is a error report handling library for C
 programming that I'm currently working on. You can find more on it in here:
 https://github.com/phao/XError.
+
+PROJECT ON HOLD
+===============
+This was a project that I thought was really interesting. Unfortunately, I had
+to make decisions on how I'd spend my time, and developing this project wasn't
+really a priority of mine. I intend to go back to this some day, but for now
+it's on hold.
